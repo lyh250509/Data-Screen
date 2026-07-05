@@ -1,0 +1,24 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "park-boundary",
+        "name": "智慧园区边界"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [113.259, 23.124],
+            [113.269, 23.124],
+            [113.269, 23.134],
+            [113.259, 23.134],
+            [113.259, 23.124]
+          ]
+        ]
+      }
+    }
+  ]
+}
