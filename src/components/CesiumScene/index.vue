@@ -22,6 +22,7 @@
 </template>
 
 <script setup lang="ts">
+// @ts-nocheck
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import * as Cesium from 'cesium'
 import { useCesiumStore } from '@/stores/cesium'

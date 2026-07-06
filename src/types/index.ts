@@ -1,4 +1,4 @@
-# TypeScript 类型定义
+// TypeScript 类型定义
 
 export interface Position {
   lng: number
@@ -34,6 +34,8 @@ export interface Person {
   department: string
   position: Position
   status: 'normal' | 'warning'
+  location?: string
+  buildingId?: string
 }
 
 export interface Vehicle {
@@ -42,4 +44,5 @@ export interface Vehicle {
   type: 'small' | 'medium' | 'large' | 'special'
   position: Position
   speed: number
+  status?: string
 }

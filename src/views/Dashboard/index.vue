@@ -46,7 +46,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useDataStore } from '@/stores/data'
-import { createMockWebSocket } from '@/utils/websocket'
 import { useMapStore } from '@/stores/map'
 import { generateHistoricalData, generateHistoricalPersonnelTrend } from '@/utils/mockData'
 import CesiumScene from '@/components/CesiumScene/index.vue'

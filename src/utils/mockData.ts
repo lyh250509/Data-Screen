@@ -157,7 +157,6 @@ export function generatePersonnel(count: number = 156): Person[] {
  * 生成车辆数据
  */
 export function generateVehicles(count: number = 89): Vehicle[] {
-  const types: Array<'small' | 'medium' | 'large' | 'special'> = ['small', 'medium', 'large', 'special']
   const weights = [0.5, 0.3, 0.15, 0.05] // 各类型概率
 
   return Array.from({ length: count }, (_, i) => {
@@ -349,7 +348,6 @@ export function generateHistoricalData(date: Date) {
  */
 function generateOutdoorPersonnel(count: number): Person[] {
   const personnel: Person[] = []
-  const offset = 0.008 // 园区范围
 
   for (let i = 0; i < count; i++) {
     // 在园区外围生成（边缘区域）

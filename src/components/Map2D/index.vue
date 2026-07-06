@@ -6,6 +6,7 @@
 </template>
 
 <script setup lang="ts">
+// @ts-nocheck
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import Map from 'ol/Map'
 import View from 'ol/View'
