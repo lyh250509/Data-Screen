@@ -69,7 +69,7 @@ function initCesium() {
     navigationHelpButton: false,
     baseLayerPicker: false,
     // 性能优化
-    requestRenderMode: false, // 改为持续渲染，确保显示
+    requestRenderMode: true, // 🚀 开启按需渲染：仅在场景变化时渲染
     maximumRenderTimeChange: Infinity,
   })
 
@@ -77,6 +77,17 @@ function initCesium() {
   viewer.scene.globe.enableLighting = false // 关闭光照，避免过暗
   viewer.scene.globe.depthTestAgainstTerrain = false
   viewer.scene.backgroundColor = new Cesium.Color(0.02, 0.05, 0.15, 1.0)
+
+  // 🚀 性能优化配置
+  viewer.scene.fog.enabled = false // 关闭雾效
+  viewer.scene.skyAtmosphere.show = false // 关闭大气层渲染
+  viewer.scene.sun.show = false // 关闭太阳
+  viewer.scene.moon.show = false // 关闭月亮
+  viewer.scene.skyBox.show = false // 关闭天空盒
+
+  // 降低地球细节级别
+  viewer.scene.globe.maximumScreenSpaceError = 2 // 默认2，提高到4可进一步优化但会降低质量
+  viewer.scene.globe.tileCacheSize = 100 // 减少瓦片缓存（默认100）
 
   // 移除版权信息
   if (viewer.cesiumWidget.creditContainer) {
@@ -419,6 +430,7 @@ function addDataPoint(point: any) {
       outlineColor: Cesium.Color.WHITE,
       outlineWidth: 2,
       heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY, // 🚀 始终可见，避免深度测试
     },
     label: {
       text: point.name,
@@ -430,6 +442,8 @@ function addDataPoint(point: any) {
       verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
       pixelOffset: new Cesium.Cartesian2(0, -15),
       heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+      distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 2000), // 🚀 距离超过2km隐藏标签，减少渲染负担
+      scaleByDistance: new Cesium.NearFarScalar(100, 1.0, 2000, 0.5), // 🚀 根据距离缩放标签
     },
     properties: {
       type: 'dataPoint',
@@ -514,6 +528,9 @@ function setupHoverHandler() {
     } else {
       document.body.style.cursor = 'default'
     }
+
+    // 🚀 按需渲染：鼠标移动时触发重绘
+    viewer!.scene.requestRender()
   }, Cesium.ScreenSpaceEventType.MOUSE_MOVE)
 }
 
@@ -585,6 +602,10 @@ watch(
     points.forEach((point) => {
       addDataPoint(point)
     })
+    // 🚀 按需渲染：数据变化时触发重绘
+    if (viewer) {
+      viewer.scene.requestRender()
+    }
   },
   { deep: true }
 )
@@ -647,8 +668,8 @@ onUnmounted(() => {
 
 .view-controls {
   position: absolute;
-  top: 20px;
-  right: 20px;
+  bottom: 20px;
+  right: 20px;  // 移到右下角，避免与右上角的 DataIndicator 重叠
   display: flex;
   gap: 10px;
   z-index: 1000;

@@ -47,7 +47,7 @@ const selectedBuilding = computed(() => sceneStore.selectedBuilding)
   padding: 0.15rem;
   min-width: 2.2rem;
   backdrop-filter: blur(10px);
-  z-index: 10;
+  z-index: 1001; // 提高层级，确保不被其他元素遮挡
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
