@@ -1,6 +1,7 @@
 <template>
   <div class="cesium-scene-wrapper">
     <div ref="cesiumContainer" class="cesium-container"></div>
+    <LoadingOverlay ref="loadingRef" />
     <DataIndicator />
     <SceneIndicator />
 
@@ -29,8 +30,10 @@ import { useCesiumStore } from '@/stores/cesium'
 import { useMapStore } from '@/stores/map'
 import DataIndicator from '@/components/Common/DataIndicator.vue'
 import SceneIndicator from '@/components/Common/SceneIndicator.vue'
+import LoadingOverlay from './LoadingOverlay.vue'
 
 const cesiumContainer = ref<HTMLDivElement>()
+const loadingRef = ref<InstanceType<typeof LoadingOverlay>>()
 const cesiumStore = useCesiumStore()
 const mapStore = useMapStore()
 
@@ -43,18 +46,25 @@ const buildingEntities = new Map<string, Cesium.Entity>()
 const dataPointEntities = new Map<string, Cesium.Entity>()
 
 // 初始化 Cesium 场景
-function initCesium() {
+async function initCesium() {
   if (!cesiumContainer.value) return
 
-  // 使用 OpenStreetMap 作为底图（无需 Token，免费使用）
-  const osmProvider = new Cesium.OpenStreetMapImageryProvider({
-    url: 'https://tile.openstreetmap.org/',
-  })
+  try {
+    // 阶段1: 初始化引擎 (0-20%)
+    loadingRef.value?.updateProgress('init', 0)
 
-  // 创建 Viewer（简化配置，不使用 Cesium Ion）
-  viewer = new Cesium.Viewer(cesiumContainer.value, {
-    // 使用 OSM 底图
-    imageryProvider: osmProvider,
+    // 🚀 优化1: 使用更快的高德地图瓦片服务（国内访问更快）
+    const imageryProvider = new Cesium.UrlTemplateImageryProvider({
+      url: 'https://webst02.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
+      maximumLevel: 18,
+    })
+
+    loadingRef.value?.updateProgress('init', 20)
+
+    // 创建 Viewer（简化配置，不使用 Cesium Ion）
+    viewer = new Cesium.Viewer(cesiumContainer.value, {
+    // 使用高德地图底图
+    imageryProvider: imageryProvider,
     // 不使用地形（避免加载在线资源）
     terrainProvider: new Cesium.EllipsoidTerrainProvider(),
     // UI 控件
@@ -73,26 +83,37 @@ function initCesium() {
     maximumRenderTimeChange: Infinity,
   })
 
-  // 设置场景样式
-  viewer.scene.globe.enableLighting = false // 关闭光照，避免过暗
-  viewer.scene.globe.depthTestAgainstTerrain = false
-  viewer.scene.backgroundColor = new Cesium.Color(0.02, 0.05, 0.15, 1.0)
+    // 阶段2: 配置场景 (20-40%)
+    loadingRef.value?.updateProgress('terrain', 30)
 
-  // 🚀 性能优化配置
-  viewer.scene.fog.enabled = false // 关闭雾效
-  viewer.scene.skyAtmosphere.show = false // 关闭大气层渲染
-  viewer.scene.sun.show = false // 关闭太阳
-  viewer.scene.moon.show = false // 关闭月亮
-  viewer.scene.skyBox.show = false // 关闭天空盒
+    // 设置场景样式
+    viewer.scene.globe.enableLighting = false // 关闭光照，避免过暗
+    viewer.scene.globe.depthTestAgainstTerrain = false
+    viewer.scene.backgroundColor = new Cesium.Color(0.02, 0.05, 0.15, 1.0)
 
-  // 降低地球细节级别
-  viewer.scene.globe.maximumScreenSpaceError = 2 // 默认2，提高到4可进一步优化但会降低质量
-  viewer.scene.globe.tileCacheSize = 100 // 减少瓦片缓存（默认100）
+    // 🚀 性能优化配置
+    viewer.scene.fog.enabled = false // 关闭雾效
+    viewer.scene.skyAtmosphere.show = false // 关闭大气层渲染
+    viewer.scene.sun.show = false // 关闭太阳
+    viewer.scene.moon.show = false // 关闭月亮
+    viewer.scene.skyBox.show = false // 关闭天空盒
+    viewer.scene.globe.showGroundAtmosphere = false // 🚀 新增：关闭地面大气层
 
-  // 移除版权信息
-  if (viewer.cesiumWidget.creditContainer) {
-    viewer.cesiumWidget.creditContainer.style.display = 'none'
-  }
+    // 🚀 优化2: 进一步降低地球细节，加快瓦片加载
+    viewer.scene.globe.maximumScreenSpaceError = 4 // 从2提高到4，牺牲一点质量换取速度
+    viewer.scene.globe.tileCacheSize = 50 // 从100减少到50，减少内存占用
+    viewer.scene.globe.preloadSiblings = false // 🚀 新增：不预加载相邻瓦片
+    viewer.scene.globe.preloadAncestors = false // 🚀 新增：不预加载父级瓦片
+
+    // 🚀 优化3: 降低帧率限制，减少GPU负担
+    viewer.targetFrameRate = 30 // 限制帧率到30fps
+
+    // 移除版权信息
+    if (viewer.cesiumWidget.creditContainer) {
+      viewer.cesiumWidget.creditContainer.style.display = 'none'
+    }
+
+    loadingRef.value?.updateProgress('terrain', 40)
 
   // 保存到 store
   cesiumStore.setViewer(viewer)
@@ -114,6 +135,8 @@ function initCesium() {
   // 必须调用 lookAtTransform 解锁相机，否则无法交互
   viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
 
+    loadingRef.value?.updateProgress('terrain', 50)
+
   console.log('✅ Cesium 场景初始化完成 - 园区居中显示')
 
   // 允许完整的 360° 旋转，不限制角度
@@ -126,17 +149,36 @@ function initCesium() {
   viewer.scene.screenSpaceCameraController.minimumZoomDistance = 20
   viewer.scene.screenSpaceCameraController.maximumZoomDistance = 5000
 
-  // 添加园区边界
-  addParkBoundary()
+    // 阶段3: 添加园区内容 (50-100%)
+    loadingRef.value?.updateProgress('buildings', 60)
 
-  // 添加建筑物
-  addBuildings()
+    // 添加园区边界
+    addParkBoundary()
+    loadingRef.value?.updateProgress('buildings', 70)
 
-  // 添加点击事件
-  setupClickHandler()
+    // 🚀 优化4: 延迟加载建筑物，避免阻塞初始化
+    await new Promise(resolve => setTimeout(resolve, 100)) // 让浏览器喘口气
+    addBuildings()
+    loadingRef.value?.updateProgress('buildings', 90)
 
-  // 添加鼠标移动高亮效果
-  setupHoverHandler()
+    // 添加点击事件
+    setupClickHandler()
+
+    // 添加鼠标移动高亮效果
+    setupHoverHandler()
+
+    // 阶段4: 完成 (100%)
+    loadingRef.value?.updateProgress('complete', 100)
+
+    // 🚀 优化5: 延迟隐藏加载界面，确保首帧渲染完成
+    await new Promise(resolve => setTimeout(resolve, 500))
+    loadingRef.value?.hide()
+
+    console.log('✅ Cesium 场景加载完成')
+  } catch (error) {
+    console.error('❌ Cesium 初始化失败:', error)
+    loadingRef.value?.hide()
+  }
 }
 
 // 添加园区边界和地面网格
